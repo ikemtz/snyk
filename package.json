@@ -61,6 +61,7 @@
     "@snyk/lodash": "^4.17.15-patch",
     "@snyk/ruby-semver": "2.2.0",
     "@snyk/snyk-cocoapods-plugin": "2.5.0",
+    "@types/sarif": "^2.1.2",
     "abbrev": "^1.1.1",
     "ansi-escapes": "3.2.0",
     "chalk": "^2.4.2",

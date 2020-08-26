@@ -47,10 +47,11 @@ import {
   summariseVulnerableResults,
 } from './formatters';
 import * as utils from './utils';
-import { getIacDisplayedOutput } from './iac-output';
+import { getIacDisplayedOutput, createSarifOutputForIac } from './iac-output';
 import { getEcosystem, testEcosystem } from '../../../lib/ecosystems';
 import { TestLimitReachedError } from '../../../lib/errors';
 import { isMultiProjectScan } from '../../../lib/is-multi-project-scan';
+import { createSarifOutputForContainers } from './sarif-output';
 
 const debug = Debug('snyk-test');
 const SEPARATOR = '\n-------------------------------------------------------\n';
@@ -206,13 +207,23 @@ async function test(...args: MethodArgs): Promise<TestCommandResult> {
     : results.map(mapIacTestResult);
 
   // backwards compat - strip array IFF only one result
-  const dataToSend =
+  const jsonData =
     errorMappedResults.length === 1
       ? errorMappedResults[0]
       : errorMappedResults;
+
+  let sarifData = {};
+  if (options.sarif || options['sarif-file-output']) {
+    sarifData = !options.iac
+      ? createSarifOutputForContainers(results)
+      : createSarifOutputForIac(results);
+  }
+
+  const dataToSend = options.json ? jsonData : sarifData;
+
   const stringifiedData = JSON.stringify(dataToSend, null, 2);
 
-  if (options.json) {
+  if (options.json || options.sarif) {
     // if all results are ok (.ok == true) then return the json
     if (errorMappedResults.every((res) => res.ok)) {
       return TestCommandResult.createJsonTestCommandResult(stringifiedData);
@@ -235,7 +246,8 @@ async function test(...args: MethodArgs): Promise<TestCommandResult> {
     }
 
     err.json = stringifiedData;
-    err.jsonStringifiedResults = stringifiedData;
+    err.jsonStringifiedResults = JSON.stringify(jsonData, null, 2);
+    err.sarifStringifiedResults = JSON.stringify(sarifData, null, 2);
     throw err;
   }
 

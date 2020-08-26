@@ -466,6 +466,11 @@ export const DockerTests: AcceptanceTests = {
         t.match(msg, 'Fixed in: 5.15.1');
       }
     },
+
+    '`test foo:latest --docker --file=Dockerfile --sarif`': (
+      params,
+      utils,
+    ) => async (t) => await testSarif(t, utils, params),
   },
 };
 
@@ -484,4 +489,64 @@ function stubDockerPluginResponse(plugins, fixture: string | object, t) {
   t.teardown(loadPlugin.restore);
 
   return spyPlugin;
+}
+
+async function testSarif(t, utils, params) {
+  stubDockerPluginResponse(
+    params.plugins,
+    {
+      plugin: {
+        packageManager: 'deb',
+      },
+      package: {
+        name: 'docker-image',
+        dependencies: {
+          'apt/libapt-pkg5.0': {
+            version: '1.6.3ubuntu0.1',
+            dependencies: {
+              'bzip2/libbz2-1.0': {
+                version: '1.0.6-8.1',
+              },
+            },
+          },
+          'bzip2/libbz2-1.0': {
+            version: '1.0.6-8.1',
+          },
+          'bzr/libbz2-1.0': {
+            version: '1.0.6-8.1',
+          },
+        },
+        docker: {
+          binaries: {
+            Analysis: [{ name: 'node', version: '5.10.1' }],
+          },
+        },
+      },
+    },
+    t,
+  );
+
+  const testableObject = await testPrep(t, utils, params, { sarif: true });
+  // const req = params.server.popRequest();
+
+  const results = JSON.parse(testableObject.message);
+  const sarifResults = require('../fixtures/docker/sarif-container-result.json');
+  t.deepEqual(results, sarifResults, 'returns correct sarif results');
+  t.end();
+}
+
+async function testPrep(t, utils, params, additionaLpropsForCli) {
+  utils.chdirWorkspaces();
+  const vulns = require('../fixtures/docker/find-result.json');
+  params.server.setNextResponse(vulns);
+
+  try {
+    await params.cli.test('foo:latest', {
+      docker: true,
+      ...additionaLpropsForCli,
+    });
+    t.fail('should have thrown');
+  } catch (testableObject) {
+    return testableObject;
+  }
 }

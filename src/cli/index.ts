@@ -80,6 +80,17 @@ async function runCommand(args: Args) {
         fullOutputFilePath,
       );
     }
+
+    //TODO: code reuse with jsonOutputFile + on the function handleError()
+    const sarifOutputFile = args.options['sarif-file-output'];
+    if (sarifOutputFile) {
+      const sarifOutputFileStr = sarifOutputFile as string;
+      const fullOutputFilePath = getFullPath(sarifOutputFileStr);
+      saveJsonResultsToFile(
+        stripAnsi((commandResult as TestCommandResult).getJsonResult()),
+        fullOutputFilePath,
+      );
+    }
   }
 
   return res;
@@ -125,6 +136,16 @@ async function handleError(args, error) {
     const fullOutputFilePath = getFullPath(jsonOutputFile);
     saveJsonResultsToFile(
       stripAnsi(error.jsonStringifiedResults),
+      fullOutputFilePath,
+    );
+  }
+
+  //TODO: code reuse with jsonOutputFile
+  const sarifOutputFile = args.options['sarif-file-output'];
+  if (sarifOutputFile && error.sarifStringifiedResults) {
+    const fullOutputFilePath = getFullPath(sarifOutputFile);
+    saveJsonResultsToFile(
+      stripAnsi(error.sarifStringifiedResults),
       fullOutputFilePath,
     );
   }
@@ -264,12 +285,7 @@ async function main() {
       throw new FileFlagBadInputError();
     }
 
-    if (args.options['json-file-output'] && args.command !== 'test') {
-      throw new UnsupportedOptionCombinationError([
-        args.command,
-        'json-file-output',
-      ]);
-    }
+    validateUnsupportedSarifCombinations(args);
 
     const jsonFileOptionSet: boolean = 'json-file-output' in args.options;
     if (jsonFileOptionSet) {
@@ -279,6 +295,19 @@ async function main() {
       }
       // On Windows, seems like quotes get passed in
       if (jsonFileOutputValue === "''" || jsonFileOutputValue === '""') {
+        throw new JsonFileOutputBadInputError();
+      }
+    }
+
+    //TODO: code reuse (json-file-output)
+    const sarifFileOptionSet: boolean = 'sarif-file-output' in args.options;
+    if (sarifFileOptionSet) {
+      const sarifFileOutputValue = args.options['sarif-file-output'];
+      if (!sarifFileOutputValue || typeof sarifFileOutputValue !== 'string') {
+        throw new JsonFileOutputBadInputError();
+      }
+      // On Windows, seems like quotes get passed in
+      if (sarifFileOutputValue === "''" || sarifFileOutputValue === '""') {
         throw new JsonFileOutputBadInputError();
       }
     }
@@ -380,5 +409,49 @@ function validateUnsupportedOptionCombinations(
     if (options.exclude.indexOf(pathLib.sep) > -1) {
       throw new ExcludeFlagInvalidInputError();
     }
+  }
+}
+
+function validateUnsupportedSarifCombinations(args) {
+  if (args.options['json-file-output'] && args.command !== 'test') {
+    throw new UnsupportedOptionCombinationError([
+      args.command,
+      'json-file-output',
+    ]);
+  }
+
+  if (args.options['sarif'] && args.command !== 'test') {
+    throw new UnsupportedOptionCombinationError([args.command, 'sarif']);
+  }
+
+  if (args.options['sarif'] && args.options['json']) {
+    throw new UnsupportedOptionCombinationError([
+      args.command,
+      'sarif',
+      'json',
+    ]);
+  }
+
+  if (args.options['sarif-file-output'] && args.command !== 'test') {
+    throw new UnsupportedOptionCombinationError([
+      args.command,
+      'sarif-file-output',
+    ]);
+  }
+
+  if (
+    args.options['sarif'] &&
+    args.options['docker'] &&
+    !args.options['file']
+  ) {
+    throw new OptionMissingErrorError('sarif', ['--file']);
+  }
+
+  if (
+    args.options['sarif-file-output'] &&
+    args.options['docker'] &&
+    !args.options['file']
+  ) {
+    throw new OptionMissingErrorError('sarif-file-output', ['--file']);
   }
 }

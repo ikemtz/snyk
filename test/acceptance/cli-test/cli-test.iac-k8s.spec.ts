@@ -2,6 +2,7 @@ import * as _ from '@snyk/lodash';
 import {
   iacTest,
   iacTestJson,
+  iacTestSarif,
   iacErrorTest,
   iacTestMetaAssertions,
   iacTestJsonAssertions,
@@ -154,5 +155,20 @@ export const IacK8sTests: AcceptanceTests = {
       params,
       utils,
     ) => async (t) => await iacTestJson(t, utils, params, 'high'),
+
+    '`iac test multi-file.yaml --severity-threshold=low --sarif`': (
+      params,
+      utils,
+    ) => async (t) => await iacTestSarif(t, utils, params, 'low'),
+
+    '`iac test multi-file.yaml --severity-threshold=medium --sarif`': (
+      params,
+      utils,
+    ) => async (t) => await iacTestSarif(t, utils, params, 'medium'),
+
+    '`iac test multi-file.yaml --severity-threshold=high --sarif`': (
+      params,
+      utils,
+    ) => async (t) => await iacTestSarif(t, utils, params, 'high'),
   },
 };
