@@ -390,7 +390,7 @@ if (!isWindows) {
     }
   });
 
-  test('`monitor yarn v2 project`', async (t) => {
+  test.skip('`monitor yarn v2 project`', async (t) => {
     const nodeVersion = parseInt(process.version.slice(1).split('.')[0], 10);
 
     if (nodeVersion < 10) {
